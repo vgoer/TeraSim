@@ -88,7 +88,10 @@ def run_simulation(config_file="examples/scenarios/police_pullover_case.yaml", a
                 requests.post(f"{base_url}/simulation_control/{simulation_id}", json={"command": "stop"})
                 return {"error": "Simulation timeout"}
             time.sleep(0.01)
-        state_response = requests.get(f"{base_url}/simulation/{simulation_id}/state")
+        state_response = requests.get(
+            f"{base_url}/simulation/{simulation_id}/state",
+            params={"center_id": "AV", "radius": 100}
+        )
         # print(f"Simulation state: {state_response.json()}")
         if status_response.json()["status"] == "finished":
             break
@@ -103,7 +106,7 @@ if __name__ == "__main__":
     
     # Example 2: Run simulation with visualization
     result = run_simulation(
-        config_file="texas_example/test_configs/cutin.yaml",
+        config_file="examples/scenarios/Mcity_safety_assessment.yaml",
         enable_viz=True,  # Enable visualization
         viz_port=8050,    # Visualization port
         viz_update_freq=2 # Update every 2 simulation steps (reduce load)

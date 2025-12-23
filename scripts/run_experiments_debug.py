@@ -49,12 +49,12 @@ def main(config_path: str) -> None:
     sumo_net_file = config.input.sumo_net_file
     sumo_config_file = config.input.sumo_config_file
     # sumo_additional_file = config.input.sumo_additional_file
-    sumo_additional_file = "./vTypeDistributions.add.xml"
+    # sumo_additional_file = "./vTypeDistributions.add.xml"
 
     sim = Simulator(
         sumo_net_file_path=sumo_net_file,
         sumo_config_file_path=sumo_config_file,
-        sumo_additional_file_path=sumo_additional_file,
+        # sumo_additional_file_path=sumo_additional_file,
         num_tries=10,
         gui_flag=config.simulator.parameters.gui_flag,
         realtime_flag=config.simulator.parameters.realtime_flag,
@@ -83,7 +83,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--config",
         type=str,
-        default="configs/simulation/test.yaml",
+        default="examples/scenarios/Mcity_safety_assessment.yaml",
         help="Path to YAML configuration file (default: configs/simulation/test.yaml)"
     )
 

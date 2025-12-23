@@ -483,12 +483,25 @@ class TeraSimCoSimPlugin(BasePlugin):
             simulator.running = False
         # Add more control command handling logic as needed
 
+    def _is_vru_id(self, agent_id: str) -> bool:
+        """Check if an agent ID represents a VRU (Vulnerable Road User).
+
+        Args:
+            agent_id: The agent ID to check
+
+        Returns:
+            bool: True if the agent is a VRU (pedestrian, cyclist, etc.)
+        """
+        vru_keywords = ["vru", "bike", "pedestrian", "cyclist", "bicycle"]
+        agent_id_lower = agent_id.lower()
+        return any(keyword in agent_id_lower for keyword in vru_keywords)
+
     def get_vehicle_vru_ids(self):
         """Get all vehicle and VRU IDs in the simulation."""
         all_ids = list(set(traci.vehicle.getIDList() + traci.person.getIDList()))
         # Separate by type: construction objects, VRUs, and regular vehicles
         construction_ids = [id for id in all_ids if id.startswith("CONSTRUCTION_")]
-        vru_ids = [id for id in all_ids if "VRU" in id and id not in construction_ids]
+        vru_ids = [id for id in all_ids if self._is_vru_id(id) and id not in construction_ids]
         vehicle_ids = [id for id in all_ids if id not in vru_ids and id not in construction_ids]
         return vehicle_ids, vru_ids, construction_ids
 
@@ -527,6 +540,9 @@ class TeraSimCoSimPlugin(BasePlugin):
                 vehicle_state.height = traci.vehicle.getHeight(vid)
                 vehicle_state.type = traci.vehicle.getTypeID(vid)
                 vehicle_state.angular_velocity = 0.0  # rad/s
+                vehicle_state.center_x = vehicle_state.x - vehicle_state.length/2 * np.cos(vehicle_state.orientation)
+                vehicle_state.center_y = vehicle_state.y - vehicle_state.length/2 * np.sin(vehicle_state.orientation)
+                vehicle_state.center_z = vehicle_state.z
                 now_time = simulation_state.simulation_time
                 now_orientation = vehicle_state.orientation
                 last_orientation, last_time = self.last_orientations.get(vid, (now_orientation, now_time))
@@ -554,6 +570,9 @@ class TeraSimCoSimPlugin(BasePlugin):
                 if vru_id in current_vehicle_list:
                     # VRU is actually a vehicle (disguised as pedestrian)
                     vru_state.x, vru_state.y, vru_state.z = traci.vehicle.getPosition3D(vru_id)
+                    vru_state.center_x = vru_state.x
+                    vru_state.center_y = vru_state.y
+                    vru_state.center_z = vru_state.z
                     vru_state.lon, vru_state.lat = traci.simulation.convertGeo(vru_state.x, vru_state.y)
                     vru_state.sumo_angle = traci.vehicle.getAngle(vru_id)
                     vru_state.speed = traci.vehicle.getSpeed(vru_id)
@@ -577,10 +596,13 @@ class TeraSimCoSimPlugin(BasePlugin):
                 elif vru_id in current_person_list:
                     # VRU is actually a person
                     vru_state.x, vru_state.y, vru_state.z = traci.person.getPosition3D(vru_id)
+                    vru_state.center_x = vru_state.x
+                    vru_state.center_y = vru_state.y
+                    vru_state.center_z = vru_state.z
                     vru_state.lon, vru_state.lat = traci.simulation.convertGeo(vru_state.x, vru_state.y)
                     vru_state.sumo_angle = traci.person.getAngle(vru_id)
                     vru_state.speed = traci.person.getSpeed(vru_id)
-                    vru_state.acceleration = traci.person.getAcceleration(vru_id)
+                    vru_state.acceleration = 0.0  # traci.person does not provide acceleration
                     vru_state.length = traci.person.getLength(vru_id)
                     vru_state.width = traci.person.getWidth(vru_id)
                     vru_state.height = traci.person.getHeight(vru_id)
@@ -601,6 +623,9 @@ class TeraSimCoSimPlugin(BasePlugin):
             for cid in construction_ids:
                 construction_state = AgentStateSimplified()
                 construction_state.x, construction_state.y, construction_state.z = traci.vehicle.getPosition3D(cid)
+                construction_state.center_x = construction_state.x 
+                construction_state.center_y = construction_state.y
+                construction_state.center_z = construction_state.z
                 construction_state.lon, construction_state.lat = traci.simulation.convertGeo(construction_state.x, construction_state.y)
                 construction_state.sumo_angle = traci.vehicle.getAngle(cid)
                 construction_state.orientation = np.radians((90 - construction_state.sumo_angle) % 360)

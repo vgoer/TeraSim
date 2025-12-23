@@ -9,6 +9,10 @@ class AgentStateSimplified(BaseModel):
     y: float = 0.0
     ## elevation of the agent (meters)
     z: float = 0.0
+
+    center_x: float = 0.0
+    center_y: float = 0.0
+    center_z: float = 0.0
     
     ## longitude of the agent (degrees)
     lon: float = 0.0

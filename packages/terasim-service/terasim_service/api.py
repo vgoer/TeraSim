@@ -501,24 +501,97 @@ async def get_simulation_results(
         return {"simulation_id": simulation_id, "status": status, "results": results}
 
 
+def filter_agents_by_radius(state: dict, center_id: str, radius: float) -> dict:
+    """Filter agents in simulation state to only include those within radius of center agent.
+
+    Args:
+        state: Complete simulation state dictionary
+        center_id: ID of the agent to use as center point
+        radius: Maximum distance in meters from center agent
+
+    Returns:
+        dict: Filtered simulation state with only nearby agents
+    """
+    import math
+
+    # Find center agent position
+    center_pos = None
+    agent_details = state.get("agent_details", {})
+
+    # Search in vehicles
+    vehicles = agent_details.get("vehicle", {})
+    if center_id in vehicles:
+        center_agent = vehicles[center_id]
+        center_pos = (center_agent.get("x", 0), center_agent.get("y", 0))
+
+    # Search in VRUs if not found
+    if center_pos is None:
+        vrus = agent_details.get("vru", {})
+        if center_id in vrus:
+            center_agent = vrus[center_id]
+            center_pos = (center_agent.get("x", 0), center_agent.get("y", 0))
+
+    # If center agent not found, return original state
+    if center_pos is None:
+        return state
+
+    def is_within_radius(agent: dict) -> bool:
+        """Check if agent is within radius of center position."""
+        x = agent.get("x", 0)
+        y = agent.get("y", 0)
+        dist = math.sqrt((x - center_pos[0])**2 + (y - center_pos[1])**2)
+        return dist <= radius
+
+    # Filter vehicles
+    filtered_vehicles = {
+        vid: vdata for vid, vdata in vehicles.items()
+        if vid == center_id or is_within_radius(vdata)
+    }
+
+    # Filter VRUs
+    vrus = agent_details.get("vru", {})
+    filtered_vrus = {
+        vid: vdata for vid, vdata in vrus.items()
+        if vid == center_id or is_within_radius(vdata)
+    }
+
+    # Create filtered state (copy original and update)
+    filtered_state = state.copy()
+    filtered_state["agent_details"] = {
+        "vehicle": filtered_vehicles,
+        "vru": filtered_vrus,
+    }
+    filtered_state["agent_count"] = {
+        "vehicle": len(filtered_vehicles),
+        "vru": len(filtered_vrus),
+        "construction": state.get("agent_count", {}).get("construction", 0),
+    }
+
+    return filtered_state
+
+
 @app.get(
     "/simulation/{simulation_id}/state",
     tags=["simulations"],
     summary="Get complete simulation state snapshot",
 )
 async def get_simulation_state(
-    simulation_id: Annotated[str, Field(description="UUID of simulation to query state from")] = Depends(get_simulation_id)
+    simulation_id: Annotated[str, Field(description="UUID of simulation to query state from")] = Depends(get_simulation_id),
+    center_id: str = None,
+    radius: float = None,
 ):
     """
     Retrieve comprehensive real-time state information for active simulation.
-    
+
     Provides complete snapshot of current simulation state including:
     vehicle positions, speeds, accelerations, and behavioral states.
     Essential for real-time monitoring and analysis.
-    
+
     Args:
         simulation_id: UUID of the target simulation
-        
+        center_id: Optional agent ID to use as center for radius filtering (e.g., "AV")
+        radius: Optional filter radius in meters. Only agents within this distance from center_id will be included.
+
     Returns:
         dict: Complete simulation state including:
             - All vehicle states (position, velocity, acceleration)
@@ -526,6 +599,10 @@ async def get_simulation_state(
             - Environmental conditions
             - Simulation time and step information
             - Agent behavioral states
+
+    Example:
+        Get all agents: /simulation/{id}/state
+        Get agents within 100m of AV: /simulation/{id}/state?center_id=AV&radius=100
     """
     try:
         redis_client = redis.Redis()
@@ -538,7 +615,13 @@ async def get_simulation_state(
         if not state:
             raise HTTPException(status_code=404, detail="Simulation state not found")
 
-        return json.loads(state.decode("utf-8"))
+        state_dict = json.loads(state.decode("utf-8"))
+
+        # Apply radius filter if both center_id and radius are provided
+        if center_id is not None and radius is not None:
+            state_dict = filter_agents_by_radius(state_dict, center_id, radius)
+
+        return state_dict
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
