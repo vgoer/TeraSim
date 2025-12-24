@@ -756,7 +756,7 @@ async def simple_cleanup_task():
                 
                 # Check 2: Force terminate if running over 1 hour
                 runtime = time.time() - info["start_time"]
-                if runtime > 3600:  # 1 hour
+                if runtime > 36000:  # 10 hours
                     logger.warning(f"Simulation {sim_id} exceeded 1 hour runtime, terminating")
                     terminate_simulation_process(sim_id, info)
                     continue

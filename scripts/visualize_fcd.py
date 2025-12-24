@@ -175,9 +175,9 @@ class TrafficVisualizer:
                 trajectory.point_plot_kwargs["markeredgecolor"] = "black"
                 trajectory.point_plot_kwargs["zorder"] = 290  # High z-order but below ego
             else:
-                # All other vehicles use gray color
-                trajectory.assign_colors_constant("gray")
-                trajectory.point_plot_kwargs["color"] = "gray"
+                # All other vehicles use black color
+                trajectory.assign_colors_constant("black")
+                trajectory.point_plot_kwargs["color"] = "black"
                 trajectory.point_plot_kwargs["markeredgecolor"] = "black"
                 trajectory.point_plot_kwargs["zorder"] = 200
             # Set size, color for different vehicle types
@@ -355,8 +355,8 @@ def main(path_to_config):
         
         print(f"Saving animation to: {save_path}")
         Writer = animation.writers['ffmpeg']
-        writer = Writer(fps=8, metadata=dict(artist='TeraSim-Vis'), bitrate=3600)
-        print(f"Saving {len(anim.time_range)} frames at 8 fps...")
+        writer = Writer(fps=10, metadata=dict(artist='TeraSim-Vis'), bitrate=3600)
+        print(f"Saving {len(anim.time_range)} frames at 10 fps...")
         anim.save(str(save_path), writer=writer, dpi=config['dpi'])
         print(f"Animation saved successfully!")
     
