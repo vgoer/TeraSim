@@ -9,7 +9,6 @@ import argparse
 
 from terasim_vis import Net, Trajectories
 
-
 def load_config(config_path):
     """Load configuration from YAML file."""
     config_path = Path(config_path)
